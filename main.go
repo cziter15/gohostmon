@@ -62,8 +62,8 @@ func NewHwMonitor(mqttPrefix, host, user, password string, updateInterval, sendI
 }
 
 func (hm *HwMonitor) getChipsetTemp() float64 {
-	sensors, err := host.SensorsTemperatures()
-	if err != nil || len(sensors) == 0 {
+	sensors, _ := host.SensorsTemperatures()
+	if len(sensors) == 0 {
 		return 0
 	}
 	for _, sensor := range sensors {
