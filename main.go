@@ -86,17 +86,14 @@ func (hm *HwMonitor) getNetworkMetrics() (float64, float64) {
 		totalBytesReceived += float64(stat.BytesRecv)
 	}
 
-	// Calculate the bytes per second (Bps)
-	bytesSentPerSec := totalBytesSent - hm.lastBytesSent
-	bytesReceivedPerSec := totalBytesReceived - hm.lastBytesReceived
+	bytesSentDiff := totalBytesSent - hm.lastBytesSent
+	bytesReceivedDiff := totalBytesReceived - hm.lastBytesReceived
 
-	// Store current values for next interval calculation
 	hm.lastBytesSent = totalBytesSent
 	hm.lastBytesReceived = totalBytesReceived
 
-	// Convert bytes per second to Mbit per second (1 byte = 8 bits, 1 Mbit = 1,000,000 bits)
-	mbpsSent := (bytesSentPerSec * 8) / 1000000
-	mbpsReceived := (bytesReceivedPerSec * 8) / 1000000
+	mbpsSent := bytesSentDiff / hm.updateInterval.Seconds() * 8 / 1000
+	mbpsReceived := bytesReceivedDiff / hm.updateInterval.Seconds() * 8 / 1000
 
 	return mbpsSent, mbpsReceived
 }
