@@ -86,17 +86,28 @@ func (hm *HwMonitor) getNetworkMetrics() (float64, float64) {
 		totalBytesReceived += float64(stat.BytesRecv)
 	}
 
-	bytesSentDiff := totalBytesSent - hm.lastBytesSent
-	bytesReceivedDiff := totalBytesReceived - hm.lastBytesReceived
+	var bytesSentDiff, bytesReceivedDiff float64
+
+	if hm.lastBytesSent > 0 && hm.lastBytesReceived > 0 {
+		bytesSentDiff = totalBytesSent - hm.lastBytesSent
+		bytesReceivedDiff = totalBytesReceived - hm.lastBytesReceived
+	}
 
 	hm.lastBytesSent = totalBytesSent
 	hm.lastBytesReceived = totalBytesReceived
 
-	mbpsSent := bytesSentDiff / hm.updateInterval.Seconds() * 8 / 1000
-	mbpsReceived := bytesReceivedDiff / hm.updateInterval.Seconds() * 8 / 1000
+	var mbpsSent, mbpsReceived float64
+	if bytesSentDiff > 0 {
+		mbpsSent = (bytesSentDiff * 8) / (hm.updateInterval.Seconds() * 1_000_000) // bits to Mbps
+	}
+
+	if bytesReceivedDiff > 0 {
+		mbpsReceived = (bytesReceivedDiff * 8) / (hm.updateInterval.Seconds() * 1_000_000) // bits to Mbps
+	}
 
 	return mbpsSent, mbpsReceived
 }
+
 
 func (hm *HwMonitor) collectMetric(key string, value float64) {
 	hm.metricValues[key] += value
