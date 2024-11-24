@@ -20,6 +20,16 @@ host=<your mqtt hostname>
 ```
 Then, you should create a bash script, which you'll put somewhere to automatically start this python script on boot.
 
+# Running
+This is an example autorun script dedicated to Kubuntu autorun mechanism which also launches HA instance:
+```bash
+#!/bin/bash
+
+cd /home/chris/Pulpit/HomeAssistant/uhostmon
+nohup ./gohostmon >/dev/null 2>&1 &
+VBoxManage startvm HomeAssistant --type headless
+```
+
 # Screenshots
 - Home Assistant dasboard
 
