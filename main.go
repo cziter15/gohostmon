@@ -140,8 +140,15 @@ func (hm *HwMonitor) maybeSendMetrics() {
 }
 
 func (hm *HwMonitor) run() {
-	if token := hm.client.Connect(); token.Wait() && token.Error() != nil {
-		log.Fatalf("Failed to connect to MQTT broker: %v", token.Error())
+	var token mqtt.Token
+	for {
+		token = hm.client.Connect()
+		token.Wait()
+		if token.Error() == nil {
+			break
+		}
+		log.Printf("Failed to connect to MQTT broker: %v. Retrying in 5s", token.Error())
+		time.Sleep(5 * time.Second)
 	}
 	hm.lastMetricSend = time.Now()
 	hm.lastMetricUpdate = time.Now()
