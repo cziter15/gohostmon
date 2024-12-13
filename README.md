@@ -6,6 +6,8 @@ This is a simple Go utility built on top of the paho.mqtt.golang and gopsutil li
 The program uses MQTT protocol and will publish everything under hwinfo/ topic, as follows
 
 ```
+hwinfo/network_total_bytes_sent
+hwinfo/network_total_bytes_received
 hwinfo/k10_temperature_celsius
 hwinfo/cpu_utilization_percent
 hwinfo/ram_used_percent
