@@ -129,7 +129,7 @@ func (hm *HwMonitor) maybeSendMetrics() {
 		// Send network metrics.
 		totalBytesSent, totalBytesReceived := hm.getNetworkMetrics()
 		hm.client.Publish(hm.prefix + "network_total_bytes_sent", 0, false, strconv.FormatUint(totalBytesSent, 10))
-		hm.client.Publish(hm.prefix + "network_total_bytes_received", 0, false, strconv.FormatUint(totalBytesSent, 10))
+		hm.client.Publish(hm.prefix + "network_total_bytes_received", 0, false, strconv.FormatUint(totalBytesReceived, 10))
 		
 		// Collect average-based metrics.
 		for key, value := range hm.metricValues {
