@@ -79,33 +79,12 @@ func (hm *HwMonitor) getNetworkMetrics() (float64, float64) {
 	if err != nil || len(netStats) == 0 {
 		return 0, 0
 	}
-
 	var totalBytesSent, totalBytesReceived float64
 	for _, stat := range netStats {
 		totalBytesSent += float64(stat.BytesSent)
 		totalBytesReceived += float64(stat.BytesRecv)
 	}
-
-	var bytesSentDiff, bytesReceivedDiff float64
-
-	if hm.lastBytesSent > 0 && hm.lastBytesReceived > 0 {
-		bytesSentDiff = totalBytesSent - hm.lastBytesSent
-		bytesReceivedDiff = totalBytesReceived - hm.lastBytesReceived
-	}
-
-	hm.lastBytesSent = totalBytesSent
-	hm.lastBytesReceived = totalBytesReceived
-
-	var mbpsSent, mbpsReceived float64
-	if bytesSentDiff > 0 {
-		mbpsSent = (bytesSentDiff * 8) / (hm.updateInterval.Seconds() * 1_000_000) // bits to Mbps
-	}
-
-	if bytesReceivedDiff > 0 {
-		mbpsReceived = (bytesReceivedDiff * 8) / (hm.updateInterval.Seconds() * 1_000_000) // bits to Mbps
-	}
-
-	return mbpsSent, mbpsReceived
+	return totalBytesSent, totalBytesReceived
 }
 
 
@@ -116,41 +95,50 @@ func (hm *HwMonitor) collectMetric(key string, value float64) {
 func (hm *HwMonitor) maybeUpdateMetrics() {
 	now := time.Now()
 	if now.Sub(hm.lastMetricUpdate) >= hm.updateInterval {
+		// Read temperatures.
 		hm.collectMetric("k10_temperature_celsius", hm.getChipsetTemp())
 
+		// Handle CPU utilization.
 		cpuPercent, _ := cpu.Percent(0, false)
 		if len(cpuPercent) > 0 {
 			hm.collectMetric("cpu_utilization_percent", cpuPercent[0])
 		}
 
+		// Read VM stats.
 		vmem, _ := mem.VirtualMemory()
 		hm.collectMetric("ram_used_percent", vmem.UsedPercent)
 
-		// Collect network metrics
-		mbpsSent, mbpsReceived := hm.getNetworkMetrics()
-		hm.collectMetric("network_mbps_sent", mbpsSent)
-		hm.collectMetric("network_mbps_received", mbpsReceived)
-
+		// Update counter and timer.
 		hm.updateCounter++
 		hm.lastMetricUpdate = now
 	}
 }
 
 func (hm *HwMonitor) maybeSendMetrics() {
+	// Handle timer.
 	now := time.Now()
 	if now.Sub(hm.lastMetricSend) >= hm.sendInterval {
+		// Collect network metrics.
+		totalSent, totalReceived := hm.getNetworkMetrics()
+		hm.collectMetric("network_total_bytes_sent", mbpsSent)
+		hm.collectMetric("network_total_bytes_received", mbpsReceived)
+
+		// Collect average-based metrics.
 		for key, value := range hm.metricValues {
 			val := value / float64(hm.updateCounter)
 			topic := hm.prefix + key
 			hm.client.Publish(topic, 0, false, strconv.FormatFloat(math.Round(val*10)/10, 'f', HWMON_ROUNDING_PRECISION, 64))
 			hm.metricValues[key] = 0
 		}
+
+		// Reset counter and timer.
 		hm.updateCounter = 0
 		hm.lastMetricSend = now
 	}
 }
 
 func (hm *HwMonitor) run() {
+	// Spawn MQTT client.
 	var token mqtt.Token
 	for {
 		token = hm.client.Connect()
@@ -161,9 +149,12 @@ func (hm *HwMonitor) run() {
 		log.Printf("Failed to connect to MQTT broker: %v. Retrying in 5s", token.Error())
 		time.Sleep(5 * time.Second)
 	}
+
+	// Init timers.
 	hm.lastMetricSend = time.Now()
 	hm.lastMetricUpdate = time.Now()
-
+	
+	// Core loop logic.
 	for {
 		hm.maybeUpdateMetrics()
 		hm.maybeSendMetrics()
@@ -174,18 +165,20 @@ func (hm *HwMonitor) run() {
 func main() {
 	fmt.Println("[HWMON starting]")
 
+	// Read config.
 	cfg, err := ini.Load("config.ini")
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
 	}
-
 	hostname := cfg.Section("credentials").Key("host").String()
 	username := cfg.Section("credentials").Key("user").String()
 	password := cfg.Section("credentials").Key("pass").String()
 
+	// Print config.
 	fmt.Println("> MQTT hostname is", hostname)
 	fmt.Println("> MQTT user is", username)
 
+	// Spawn the tool and run it forever.
 	monitor := NewHwMonitor(HWMON_MQTT_PREFIX, hostname, username, password, HWMON_METRIC_UPDATE_INTERVAL, HWMON_METRIC_SEND_INTERVAL)
 	fmt.Println("[Monitor starting]")
 	monitor.run()
