@@ -36,8 +36,8 @@ type HwMonitor struct {
 	metricValues      map[string]float64
 	lastMetricSend    time.Time
 	lastMetricUpdate  time.Time
-	lastBytesSent     float64
-	lastBytesReceived float64
+	lastBytesSent     uint64
+	lastBytesReceived uint64
 }
 
 func NewHwMonitor(mqttPrefix, host, user, password string, updateInterval, sendInterval time.Duration) *HwMonitor {
@@ -74,19 +74,42 @@ func (hm *HwMonitor) getChipsetTemp() float64 {
 	return 0
 }
 
-func (hm *HwMonitor) getNetworkMetrics() (float64, float64) {
-	netStats, err := net.IOCounters(false)
+func (hm *HwMonitor) getNetworkMetrics() (uint64, uint64) {
+	netStats, err := net.IOCounters(true) // true fetches stats per interface
 	if err != nil || len(netStats) == 0 {
 		return 0, 0
 	}
-	var totalBytesSent, totalBytesReceived float64
+
+	var totalBytesSent, totalBytesReceived uint64
 	for _, stat := range netStats {
-		totalBytesSent += float64(stat.BytesSent)
-		totalBytesReceived += float64(stat.BytesRecv)
+		if isPhysicalEthernetInterface(stat.Name) {
+			totalBytesSent += stat.BytesSent
+			totalBytesReceived += stat.BytesRecv
+		}
 	}
+
 	return totalBytesSent, totalBytesReceived
 }
 
+func isPhysicalEthernetInterface(name string) bool {
+	// Exclude loopback interfaces
+	if strings.HasPrefix(name, "lo") {
+		return false
+	}
+
+	// Exclude Docker-related interfaces
+	if strings.HasPrefix(name, "docker") ||
+		strings.HasPrefix(name, "br-") ||
+		strings.HasPrefix(name, "veth") ||
+		strings.HasPrefix(name, "tun") || // Often used for VPNs/tunnels
+		strings.HasPrefix(name, "virbr") || // Virtual bridges
+		strings.HasPrefix(name, "kube") { // Kubernetes-related
+		return false
+	}
+
+	// Include only physical Ethernet interfaces (e.g., "eth0", "enp3s0")
+	return strings.HasPrefix(name, "eth") || strings.HasPrefix(name, "enp")
+}
 
 func (hm *HwMonitor) collectMetric(key string, value float64) {
 	hm.metricValues[key] += value
