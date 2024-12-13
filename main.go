@@ -120,8 +120,8 @@ func (hm *HwMonitor) maybeSendMetrics() {
 	if now.Sub(hm.lastMetricSend) >= hm.sendInterval {
 		// Collect network metrics.
 		totalSent, totalReceived := hm.getNetworkMetrics()
-		hm.collectMetric("network_total_bytes_sent", mbpsSent)
-		hm.collectMetric("network_total_bytes_received", mbpsReceived)
+		hm.collectMetric("network_total_bytes_sent", totalSent)
+		hm.collectMetric("network_total_bytes_received", totalReceived)
 
 		// Collect average-based metrics.
 		for key, value := range hm.metricValues {
