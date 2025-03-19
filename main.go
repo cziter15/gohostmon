@@ -1,10 +1,10 @@
 package main
 
 import (
+	"gohostmon/hwmon"
 	"log"
 	"time"
 
-	"hwmon"
 	"gopkg.in/ini.v1"
 )
 
@@ -16,9 +16,11 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
 	}
+
 	hostname := cfg.Section("credentials").Key("host").String()
 	username := cfg.Section("credentials").Key("user").String()
 	password := cfg.Section("credentials").Key("pass").String()
+	prefix := cfg.Section("credentials").Key("prefix").String()
 
 	// Print configuration
 	log.Println("Configured MQTT hostname is", hostname)
@@ -26,7 +28,7 @@ func main() {
 
 	// Create and run the monitor
 	monitor := hwmon.NewHwMonitor(
-		"hwinfo/",
+		prefix,
 		hostname,
 		username,
 		password,

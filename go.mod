@@ -1,4 +1,4 @@
-module uhostmon
+module gohostmon
 
 go 1.23
 
